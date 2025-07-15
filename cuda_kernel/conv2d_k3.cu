@@ -133,9 +133,6 @@ __global__ void conv2d_k3_kernel(
 }
 
 
-
-
-
 void conv2d_kernel(
     uintptr_t x_ptr , 
     uintptr_t w_ptr , 
