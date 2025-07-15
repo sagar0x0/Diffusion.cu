@@ -8,6 +8,7 @@
 #include <pybind11/pybind11.h>
 #include <torch/extension.h> 
 
+
 constexpr int BLOCK_SIZE = 128;
 constexpr int VEC_SIZE = 4; // Use 128-bit vectorized memory operations
 
@@ -25,6 +26,7 @@ __global__ void flash_atten_kernel(
     bool is_causal , float inv_sqrt_d
 ) {
     // shared memory 
+
     extern __shared__ char smem_buffer[]; // gives raw smem buffer ptr 
     auto* sQ = reinterpret_cast<float*>(smem_buffer);  // Q_smem_size = TILE_SIZE_Q * D
     auto* sK = sQ + TILE_SIZE_Q * D;        // K_smem_size = TILE_SIZE_KV * D
@@ -56,9 +58,9 @@ __global__ void flash_atten_kernel(
     float max_val = -FLT_MAX;
 
     // output accumulator as an array to hold D dimensions per query
+
     // for D = 128 || D/32 = 4
     float acc[4] = {0.0f}; // for each thread calc multiple value along D(warp_size=32) || D is template param
-
 
     // Each warp handles one query row
     const int s_query_block = blockIdx.z * TILE_SIZE_Q;   // S:: TILE_SIZE_Q:TILE_SIZE_Q:TILE_SIZE_Q:.....
@@ -68,7 +70,6 @@ __global__ void flash_atten_kernel(
     // Q (B , S , H , D)    || load (TILE_SIZE_Q, D)    
     if(s_query < S && warp_id < TILE_SIZE_Q){   // boundary check 
         const float* q_ptr = Q + (batch_id * S * H + s_query * H + head_id) * D ; // for current warp ,queryrow to load 
-
         for(int i = lane_id * VEC_SIZE; i < D ; i += 32*VEC_SIZE ){ // warp_threads access pattern-> 0,32,64..... || warp_size = 32
             // cast the float smem & gmem ptr to float4 and then deference the smem ptr to store value
             // sQ + warp_id * D + i : vectorized load by each thread
@@ -89,7 +90,6 @@ __global__ void flash_atten_kernel(
         // k_ptr & v_ptr 
         const float* k_ptr = K + (batch_id * S * H + tile_kv * H + head_id) * D;
         const float* v_ptr = V + (batch_id * S * H + tile_kv * H + head_id) * D;
-
         
         for(int i = tid * VEC_SIZE ; i < valid_rows * D ; i += BLOCK_SIZE * VEC_SIZE) {     // blockDim.x=128  || block_threads access pattern-> 0, 512, 1024..... 
             // (i / D) * D + d  is literally i when flattened from 2D to 1D for SMEM
@@ -167,7 +167,6 @@ __global__ void flash_atten_kernel(
                     // store the output 
                     // (B , S , H , D)
                     Out[(batch_id * S * H + s_query * H + head_id) * D + i ] = acc[warp_id];
-
                     if (lane_id == 0) {
                         LSE[batch_id * S * H + s_query * H + head_id] = logf(l) + max_val;
                     }
@@ -205,7 +204,6 @@ void launch_attention(
     const auto* V = reinterpret_cast<const float*>(V_ptr);
     auto* Out = reinterpret_cast<float*>(Out_ptr);
     auto* LSE = reinterpret_cast<float*>(LSE_ptr);
-
     // (B , S , H , D) -> (Batch_size, Seq_len, num_heads, Head_dim)
     // Q , K , V   ->  (B , S , H , D)
     // output initialized with zeros
@@ -228,5 +226,6 @@ void launch_attention(
         Out, LSE,
         B, S, H, D,
         is_causal , inv_sqrt_d
+
     );
 }
