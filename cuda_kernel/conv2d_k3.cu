@@ -4,6 +4,7 @@
 #include <cooperative_groups/reduce.h>
 #include <cmath>
 #include <pybind11/pybind11.h>
+#include <torch/extension.h>
 
 // CUDA error checking
 inline void cuda_check(cudaError_t error, const char *file, int line) {
@@ -30,8 +31,8 @@ __global__ void conv2d_k3_kernel(
     // x :: (Batch_Size, In_Channels, Height, Width) -> (Batch_Size, Out_Channels, Height, Width)
     // weight filter :: (out_channels, in_channels, 3, 3)      || kerenel_height == kernel_width == 3
 
-    int block_row = blockIdx.y ;
-    int block_col = blockIdx.x ;
+    int block_row = blockIdx.y ;   // redundant
+    int block_col = blockIdx.x ;   // redundant
 
     int batch_idx = blockIdx.y / (C_out * num_cin) ;
     // int cout_idx = batch_idx * C_out * num_cin + blockIdx.y / num_cin ;
@@ -133,7 +134,7 @@ __global__ void conv2d_k3_kernel(
 }
 
 
-void conv2d_kernel(
+void conv2d_k3(
     uintptr_t x_ptr , 
     uintptr_t w_ptr , 
     uintptr_t out_ptr ,
@@ -169,6 +170,6 @@ void conv2d_kernel(
 
 }
 
-PYBIND11_MODULE(conv2dkernel, m) {
-  m.def("Conv2d_cuda_kernel", &conv2d_kernel, "Cuda Conv2d kernel");
+PYBIND11_MODULE(Conv2d_cuda_kernel, m) {
+  m.def("Conv2d_k3", &conv2d_k3, "Cuda Conv2d kernel");
 }

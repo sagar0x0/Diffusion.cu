@@ -4,7 +4,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <torch/extension.h>
-
+#include <pybind11/pybind11.h>
 // vector loading
 
 // CUDA error checking
@@ -123,14 +123,15 @@ __global__ void groupNormKernel(float *x, float *out, int batch_size,
 
 // launch groupnorm kernel
 void groupNorm(uintptr_t x_ptr, uintptr_t out_ptr, int batch_size,
-               int in_channels, int height, int width) {
+               int in_channels, int height, int width, int num_groups) {
   auto *x = reinterpret_cast<float *>(x_ptr);
   auto *out = reinterpret_cast<float *>(out_ptr);
   // Groupnorm : (Batch_Size, In_Channels, Height, Width) -> (Batch_Size,
   // In_Channels, Height, Width) 32 channels per group     ::    In_Channels->
   // [num_groups , channels_per_group]
 
-  int num_group = 32;
+  // int num_group = 32;  || take from kernel call arg
+  int num_group = num_groups;
   int image_size = height * width;
   int group_size = in_channels / num_group;
 
@@ -143,4 +144,9 @@ void groupNorm(uintptr_t x_ptr, uintptr_t out_ptr, int batch_size,
                                              image_size, group_size);
 
   cudaCheck(cudaGetLastError());
+}
+
+
+PYBIND11_MODULE(groupNorm_kernel, m) {
+    m.def("groupNorm", &groupNorm, "Cuda groupNorm kernel");
 }
