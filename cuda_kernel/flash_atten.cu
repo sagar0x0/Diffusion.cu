@@ -34,13 +34,13 @@ __global__ void flash_atten_kernel(
 
     const int batch_id = blockIdx.x;
     const int head_id = blockIdx.y;
-    const int block_id = blockIdx.z;
+    const int block_id = blockIdx.z;        // redundant
     const int tid = threadIdx.x;
     const int warp_id = tid / 32;
     const int lane_id = tid % 32;
 
     // vector loading 4 float from D dimension  ||  128-bit vectorized memory operations
-    const int d_vec = D / VEC_SIZE ;
+    const int d_vec = D / VEC_SIZE ;       // redundant
 
     // fine-grained warp control 
     namespace cg = cooperative_groups;
@@ -228,4 +228,8 @@ void launch_attention(
         is_causal , inv_sqrt_d
 
     );
+}
+
+PYBIND11_MODULE(flash_atten_kernel, m) {
+  m.def("flash_atten", &launch_attention, "Cuda flash attention kernel");
 }
