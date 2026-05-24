@@ -1,5 +1,4 @@
 .DS_Store
-interview_prep_diffusion_cu.md
 build/
 __pycache__/
 *.so
